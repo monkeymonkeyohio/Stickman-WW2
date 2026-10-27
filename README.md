@@ -1,1 +1,1 @@
-# Stickman-WW2
+Click Play Offline
