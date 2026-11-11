@@ -1,38 +1,54 @@
-// Stickman WW2 - Standalone CrazyGames compatibility shim
-// No external SDK required.
-
+// Stickman WW2 - CrazyGames SDK v3 Compatibility Shim
 (function () {
     "use strict";
 
-    window.Crazygames = {
-        init: function (options) {
-            console.log("[Standalone] SDK initialization skipped.", options);
+    window.CrazyGames = window.CrazyGames || {};
+
+    window.CrazyGames.SDK = {
+        init: function () {
+            console.log("[Standalone V3] SDK initialized successfully.");
+            return Promise.resolve();
         },
-
-        gameplayStart: function () {
-            console.log("[Standalone] Gameplay started.");
+        environment: "local",
+        game: {
+            gameplayStart: function () {
+                console.log("[Standalone V3] Gameplay started.");
+            },
+            gameplayStop: function () {
+                console.log("[Standalone V3] Gameplay stopped.");
+            },
+            happytime: function () {
+                console.log("[Standalone V3] Happytime triggered.");
+            },
+            loadingStart: function () {},
+            loadingStop: function () {}
         },
-
-        gameplayStop: function () {
-            console.log("[Standalone] Gameplay stopped.");
+        ad: {
+            requestAd: function (type, callbacks) {
+                console.log("[Standalone V3] Ad requested:", type);
+                if (callbacks && typeof callbacks.finished === "function") {
+                    callbacks.finished();
+                } else if (callbacks && typeof callbacks.success === "function") {
+                    callbacks.success();
+                }
+            },
+            hasAdBlocker: function () {
+                return Promise.resolve(false);
+            }
         },
-
-        happytime: function () {},
-
-        screenshotReceived: function (image) {},
-
-        requestAd: function (type) {
-            console.log("[Standalone] Ads unavailable:", type);
+        user: {
+            isUserAccountAvailable: false,
+            getUser: function () {
+                return Promise.resolve(null);
+            }
         },
-
-        requestBanners: function (banners) {
-            console.log("[Standalone] Banners unavailable.");
-        },
-
-        requestInviteUrl: function (url) {
-            console.log("[Standalone] Invites unavailable.");
+        data: {
+            setItem: function () {},
+            getItem: function () {
+                return Promise.resolve(null);
+            }
         }
     };
 
-    console.log("[Standalone] CrazyGames dependency replaced.");
+    console.log("[Standalone V3] CrazyGames SDK v3 shim loaded.");
 })();
