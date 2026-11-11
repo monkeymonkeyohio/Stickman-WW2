@@ -6244,25 +6244,71 @@
         }
     }(), n.nmd = e => (e.paths = [], e.children || (e.children = []), e), n(156)
 
-    window.Crazygames = window.CrazyGames;
+       // Complete v1/v2 -> v3 Proxy Bridge for Unity WebGL
+    const cgListeners = {};
+    function triggerCgEvent(eventName, data) {
+        console.log("[CG Bridge Event]", eventName, data);
+        if (cgListeners[eventName]) {
+            cgListeners[eventName].forEach(fn => {
+                try { fn(data); } catch (e) { console.error(e); }
+            });
+        }
+    }
 
-    // Compatibility bridge for Unity games built with CrazyGames SDK v1/v2
-    window.Crazygames.init = function(options) {
-        return window.CrazyGames.SDK.init(options);
+    const legacyBridge = {
+        SDK: window.CrazyGames.SDK,
+        addEventListener: function(eventName, callback) {
+            if (!cgListeners[eventName]) cgListeners[eventName] = [];
+            cgListeners[eventName].push(callback);
+            if (eventName === "initialized" && legacyBridge._isInitialized) {
+                setTimeout(() => callback({ userInfo: { countryCode: "US", locale: "en-US" } }), 0);
+            }
+        },
+        removeEventListener: function(eventName, callback) {
+            if (!cgListeners[eventName]) return;
+            cgListeners[eventName] = cgListeners[eventName].filter(fn => fn !== callback);
+        },
+        init: function(options) {
+            return window.CrazyGames.SDK.init(options).then(() => {
+                legacyBridge._isInitialized = true;
+                const payload = { userInfo: { countryCode: "US", locale: "en-US" } };
+                if (typeof options === "function") options(payload);
+                if (options && typeof options.callback === "function") options.callback(payload);
+                triggerCgEvent("initialized", payload);
+                return payload;
+            });
+        },
+        requestAd: function(adType) {
+            triggerCgEvent("adStarted");
+            setTimeout(() => triggerCgEvent("adFinished"), 100);
+        },
+        gameplayStart: () => window.CrazyGames.SDK.game.gameplayStart(),
+        gameplayStop: () => window.CrazyGames.SDK.game.gameplayStop(),
+        happytime: () => window.CrazyGames.SDK.game.happytime(),
+        sdkGameLoadingStart: () => window.CrazyGames.SDK.game.loadingStart(),
+        sdkGameLoadingStop: () => window.CrazyGames.SDK.game.loadingStop(),
+        requestBanner: () => {},
+        requestResponsiveBanner: () => {},
+        clearBanner: () => {},
+        clearAllBanners: () => {},
+        inviteLink: (params) => window.CrazyGames.SDK.game.inviteLink(params || {}),
+        showInviteButton: () => {},
+        hideInviteButton: () => {},
+        getUser: () => Promise.resolve(null),
+        getUserToken: () => Promise.resolve(""),
+        showAuthPrompt: () => Promise.resolve(null),
+        showAccountLinkPrompt: () => Promise.resolve(null),
+        isUserAccountAvailable: () => false,
+        getSystemInfo: () => ({ countryCode: "US", locale: "en-US", device: { type: "desktop" }, os: { name: "Windows" }, browser: { name: "Chrome" } })
     };
-    window.Crazygames.requestAd = function(adType, callbacks) {
-        return window.CrazyGames.SDK.ad.requestAd(adType || "midgame", callbacks);
-    };
-    window.Crazygames.gameplayStart = function() {
-        return window.CrazyGames.SDK.game.gameplayStart();
-    };
-    window.Crazygames.gameplayStop = function() {
-        return window.CrazyGames.SDK.game.gameplayStop();
-    };
-    window.Crazygames.happytime = function() {
-        return window.CrazyGames.SDK.game.happytime();
-    };
-    window.Crazygames.requestBanner = function(banners) {
-        return window.CrazyGames.SDK.banner.requestBanner(banners);
-    };
+
+    window.Crazygames = new Proxy(legacyBridge, {
+        get(target, prop) {
+            if (prop in target) return target[prop];
+            if (window.CrazyGames && prop in window.CrazyGames) return window.CrazyGames[prop];
+            console.warn("[CG Bridge] Unhandled property/method accessed:", String(prop));
+            return function() { return Promise.resolve(); };
+        }
+    });
 })();
+
