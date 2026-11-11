@@ -6255,60 +6255,57 @@
         }
     }
 
+       // Unity 5.6 CrazyGames SDK Bridge (uses SendMessage to options.crazySDKObjectName)
+    let unitySdkObjName = "CrazyGamesSDK";
+    function sendToUnity(method, param) {
+        const inst = window.unityInstance || window.gameInstance;
+        if (inst && typeof inst.SendMessage === "function") {
+            console.log("[CG -> Unity]", unitySdkObjName, method, param);
+            try {
+                if (param !== undefined) inst.SendMessage(unitySdkObjName, method, param);
+                else inst.SendMessage(unitySdkObjName, method);
+            } catch (e) {
+                console.warn("[CG -> Unity SendMessage error]", method, e);
+            }
+        } else {
+            console.warn("[CG -> Unity] unityInstance not found on window!");
+        }
+    }
+
     const legacyBridge = {
         SDK: window.CrazyGames.SDK,
-        addEventListener: function(eventName, callback) {
-            if (!cgListeners[eventName]) cgListeners[eventName] = [];
-            cgListeners[eventName].push(callback);
-            if (eventName === "initialized" && legacyBridge._isInitialized) {
-                setTimeout(() => callback({ userInfo: { countryCode: "US", locale: "en-US" } }), 0);
-            }
-        },
-        removeEventListener: function(eventName, callback) {
-            if (!cgListeners[eventName]) return;
-            cgListeners[eventName] = cgListeners[eventName].filter(fn => fn !== callback);
-        },
         init: function(options) {
+            if (options && options.crazySDKObjectName) {
+                unitySdkObjName = options.crazySDKObjectName;
+            }
+            console.log("[CG Bridge] Init called for object:", unitySdkObjName, options);
             return window.CrazyGames.SDK.init(options).then(() => {
-                legacyBridge._isInitialized = true;
-                const payload = { userInfo: { countryCode: "US", locale: "en-US" } };
-                if (typeof options === "function") options(payload);
-                if (options && typeof options.callback === "function") options.callback(payload);
-                triggerCgEvent("initialized", payload);
-                return payload;
+                // Notify Unity that SDK initialization succeeded
+                sendToUnity("InitCallback", JSON.stringify({
+                    userInfo: { countryCode: "US", locale: "en-US" }
+                }));
             });
         },
         requestAd: function(adType) {
-            triggerCgEvent("adStarted");
-            setTimeout(() => triggerCgEvent("adFinished"), 100);
+            sendToUnity("AdEvent", "adStarted");
+            setTimeout(() => {
+                sendToUnity("AdEvent", "adFinished");
+            }, 100);
         },
         gameplayStart: () => window.CrazyGames.SDK.game.gameplayStart(),
         gameplayStop: () => window.CrazyGames.SDK.game.gameplayStop(),
         happytime: () => window.CrazyGames.SDK.game.happytime(),
-        sdkGameLoadingStart: () => window.CrazyGames.SDK.game.loadingStart(),
-        sdkGameLoadingStop: () => window.CrazyGames.SDK.game.loadingStop(),
-        requestBanner: () => {},
-        requestResponsiveBanner: () => {},
-        clearBanner: () => {},
-        clearAllBanners: () => {},
-        inviteLink: (params) => window.CrazyGames.SDK.game.inviteLink(params || {}),
-        showInviteButton: () => {},
-        hideInviteButton: () => {},
-        getUser: () => Promise.resolve(null),
-        getUserToken: () => Promise.resolve(""),
-        showAuthPrompt: () => Promise.resolve(null),
-        showAccountLinkPrompt: () => Promise.resolve(null),
-        isUserAccountAvailable: () => false,
-        getSystemInfo: () => ({ countryCode: "US", locale: "en-US", device: { type: "desktop" }, os: { name: "Windows" }, browser: { name: "Chrome" } })
+        requestBanners: () => {},
+        requestInviteUrl: (url) => sendToUnity("InviteUrlCallback", url || window.location.href),
+        screenshotReceived: () => {}
     };
 
     window.Crazygames = new Proxy(legacyBridge, {
         get(target, prop) {
             if (prop in target) return target[prop];
             if (window.CrazyGames && prop in window.CrazyGames) return window.CrazyGames[prop];
-            console.warn("[CG Bridge] Unhandled property/method accessed:", String(prop));
+            console.warn("[CG Bridge] Unhandled method:", String(prop));
             return function() { return Promise.resolve(); };
         }
     });
 })();
-
