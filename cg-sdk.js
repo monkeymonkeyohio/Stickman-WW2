@@ -6243,4 +6243,6 @@
             if ("object" == typeof window) return window
         }
     }(), n.nmd = e => (e.paths = [], e.children || (e.children = []), e), n(156)
+
+window.Crazygames = window.CrazyGames;
 })();
