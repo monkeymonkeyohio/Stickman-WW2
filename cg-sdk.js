@@ -6244,5 +6244,25 @@
         }
     }(), n.nmd = e => (e.paths = [], e.children || (e.children = []), e), n(156)
 
-window.Crazygames = window.CrazyGames;
+    window.Crazygames = window.CrazyGames;
+
+    // Compatibility bridge for Unity games built with CrazyGames SDK v1/v2
+    window.Crazygames.init = function(options) {
+        return window.CrazyGames.SDK.init(options);
+    };
+    window.Crazygames.requestAd = function(adType, callbacks) {
+        return window.CrazyGames.SDK.ad.requestAd(adType || "midgame", callbacks);
+    };
+    window.Crazygames.gameplayStart = function() {
+        return window.CrazyGames.SDK.game.gameplayStart();
+    };
+    window.Crazygames.gameplayStop = function() {
+        return window.CrazyGames.SDK.game.gameplayStop();
+    };
+    window.Crazygames.happytime = function() {
+        return window.CrazyGames.SDK.game.happytime();
+    };
+    window.Crazygames.requestBanner = function(banners) {
+        return window.CrazyGames.SDK.banner.requestBanner(banners);
+    };
 })();
